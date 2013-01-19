@@ -1,7 +1,7 @@
 pangeaD3
 ========
 
-Pangea animation using <a href="https://github.com/mbostock/d3/wiki/Geo-Projections" target="_blank">d3.geo.orthographic projection.</a>
+<a href="http://en.wikipedia.org/wiki/Pangaea" target="_blank">Pangea</a> animation using <a href="https://github.com/mbostock/d3/wiki/Geo-Projections" target="_blank">d3.geo.orthographic projection.</a>
 
 Demo: <a href="http://www.web-maps.com/pangea/" target="_blank">http://www.web-maps.com/pangea/</a>
 
