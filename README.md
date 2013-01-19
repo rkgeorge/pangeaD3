@@ -7,7 +7,9 @@ Data is from http://www.gplates.org/ under creative commons license
 http://www.gps.caltech.edu/~gurnis/GPlates/License_Caltech_Global_201129.html
 
 1) Time series data was exported as .shp from <a href="http://www.gplates.org/" target="_blank">GPlates 1.2.0.</a> 
+
 2) Converted to GeoJson using <a href="http://www.gdal.org/ogr2ogr.html" target="_blank">ogr2ogr.</a> 
+
 3) GeoJson files were compacted into TopoJson format using the <a href="https://github.com/mbostock/topojson/wiki" target="_blank">topojson</a> node.js tool.
 
 Example:
