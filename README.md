@@ -2,7 +2,8 @@ pangeaD3
 ========
 
 Pangea animation using D3 Orthographic projection.
-Demo: http://www.web-maps.com/pangea/
+
+Demo: <a href="http://www.web-maps.com/pangea/" target="_blank">http://www.web-maps.com/pangea/</a>
 
 Tectonic Plate motion simulation
  
