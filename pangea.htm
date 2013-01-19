@@ -1,0 +1,321 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Pangea Viewer</title>
+    <meta charset="utf-8">
+
+    <!-- jQuery -->
+    <link href="css/ui-darkness/jquery-ui-1.9.1.custom.min.css" rel="stylesheet" />
+    <script type="text/javascript" src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.8.2.min.js"></script>
+    <script type="text/javascript" src="js/ui-darkness/jquery-ui-1.9.1.custom.min.js"></script>
+    <script type="text/javascript" src="js/jquery.timer.js"></script>
+    <!-- d3js -->
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+    <script src="http://d3js.org/topojson.v0.min.js"></script>
+
+    <link href="css/pangea.css" rel="stylesheet" type="text/css" />
+
+    <script>
+        $(document).ready(function () {
+            var width = null;
+            var height = null;
+            var position = 0;
+            var stepby = 1;
+            var playinterval = 500; //default 500ms
+            var maxpos = 140;
+            //some data frames have a problem with polygons that cause a fill of entire world
+            var baddata = [15, 38, 40, 54, 57, 59, 65, 70, 90, 91, 102, 119, 128, 132, 134];
+
+            // check for IE and set a longer playinterval
+            function checkBrowser() {
+                if (/MSIE (\d+\.\d+);/.test(navigator.userAgent)) {
+                    var ieversion = new Number(RegExp.$1);
+                    if (ieversion >= 8) playinterval = 500;
+                }
+                else playinterval = 100;
+            }
+            checkBrowser();
+
+            function resizeFrame() {
+                width = $(window).width() - 30;
+                height = $(window).height() - 175;
+                $("#divPangea").css({ 'width': width, 'height': height });
+
+                $("#label").css({ "margin-left": (width / 2) - 115 + "px" });
+                $("#stepControls").css({ "margin-left": (width / 2) - 165 + "px" });
+                $("#time-slider").css({ "margin-left": (width / 2) - 155 + "px" });
+
+                if (svg != null) {
+                    projection = d3.geo.orthographic()
+                        .scale(225)
+                        .translate([width / 2, height / 2])
+                        .clipAngle(90);
+
+                    path = d3.geo.path()
+                        .projection(projection);
+
+                    svg = d3.select("#svgmap")
+                        .attr("width", width)
+                        .attr("height", height);
+                 }
+
+            }
+            $(window).resize(resizeFrame).resize();
+
+            //resize it adds a pause to prevent continuous step() calls while stretching the window
+            var resizeit;
+            $(window).resize(function () {
+                clearTimeout(resizeit);
+                resizeit = setTimeout(function () { step(); }, 50);
+            });
+
+            //timer for step playinterval
+            var timer = $.timer(
+			        function () {
+			            position = position + stepby;
+
+			            // skip the bad data
+			            while ($.inArray(position, baddata) > -1) position = position + stepby;
+
+			            if (position > maxpos || position < 0) {
+			                //reverse
+			                stepby = -1 * stepby;
+			            }
+			            $("#time-slider").slider("value", position);
+			        },
+			        playinterval,
+			        true
+		        );
+
+            timer.pause();
+            position = 0;
+
+            var projection = d3.geo.orthographic()
+                .scale(225)
+                .translate([width / 2, height / 2])
+                .clipAngle(90);
+
+            /* sometimes it's helpful to see the entire world
+            var projection = d3.geo.mercator()
+            .scale(550)
+            .translate([width / 2, height / 2]);
+            */
+
+            var path = d3.geo.path()
+                    .projection(projection);
+
+            step();
+
+            var λ = d3.scale.linear()
+            .domain([0, width])
+            .range([-360, 360]);
+
+            var φ = d3.scale.linear()
+            .domain([0, height])
+            .range([180, -180]);
+
+            var svg = d3.select("#map").append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .attr("id", "svgmap")
+                .on("mousedown", mousedown)
+                .on("mousemove", mousemove);
+
+            d3.select(window)
+                .on("mouseup", mouseup);
+
+            var p0;
+            function mousedown() {
+                p0 = [d3.event.pageX, d3.event.pageY];
+                timer.pause();
+                d3.event.preventDefault();
+            }
+            function mousemove() {
+                if (p0) {
+                    p0 = [d3.event.pageX, d3.event.pageY];
+                    projection.rotate([λ(p0[0]), φ(p0[1])]);
+                    svg.selectAll("path").attr("d", path);
+                }
+            }
+            function mouseup() {
+                if (p0) {
+                    mousemove();
+                    p0 = null;
+                }
+            }
+
+            function step() {
+                //step is fired at the slider change event and the change event
+                // is triggered in all cases
+
+                var posname = "json/topostep_" + pad(position, 3) + ".json";
+                d3.select("svg path").remove(); //remove the first path in svg
+                d3.json(posname, function (error, world) {//add new path
+                    svg.append("path")
+                      .datum(topojson.object(world, world.objects.step))
+                      .attr("class", "land")
+                      .attr("id", pad(position, 3))
+                      .attr("d", path);
+                });
+
+                $("#timelabel").text(pad(position, 3));
+
+            }
+
+            $("button:first").button({
+                icons: {
+                    primary: "ui-icon ui-icon-seek-first"
+                },
+                text: false
+            }).click(function (event) {
+                //go to first
+                stepby = 1;
+                position = 0;
+                d3.selectAll("svg path").remove(); //remove all paths in svg
+                $("#time-slider").slider("value", position);
+                event.preventDefault();
+            }).next().button({
+                icons: {
+                    primary: "ui-icon ui-icon-arrowthick-1-w"
+                },
+                text: false
+            }).click(function (event) {
+                //step back - 
+                stepby = 1;
+                d3.selectAll("svg path").remove(); //remove all paths in svg
+                position = position - stepby;
+                if (position < 0) position = 0;
+                $("#time-slider").slider("value", position);
+                event.preventDefault();
+            }).next().button({
+                icons: {
+                    primary: "ui-icon ui-icon-stop"
+                },
+                text: false
+            }).click(function (event) {
+                //stop
+                timer.pause();
+                d3.selectAll("svg path").remove(); //remove all paths in svg
+                stepby = 1;
+                position = 0;
+                $("#time-slider").slider("value", position);
+                event.preventDefault();
+
+            }).next().button({
+                icons: {
+                    primary: "ui-icon ui-icon-play"
+                },
+                text: false
+            }).click(function (event) {
+                //play 
+                d3.selectAll("svg path").remove(); //remove all paths in svg
+                preloadPlayPathCache(3);
+                position = position + 2;
+                timer.play();
+            }).next().button({
+                icons: {
+                    primary: "ui-icon ui-icon-pause"
+                },
+                text: false
+            }).click(function (event) {
+                //pause
+                timer.pause();
+                event.preventDefault();
+            }).next().button({
+                icons: {
+                    primary: "ui-icon ui-icon-arrowthick-1-e"
+                },
+                text: false
+            }).click(function (event) {
+                //step forward- 
+                stepby = 1;
+                d3.selectAll("svg path").remove(); //remove all paths in svg
+                position = position + stepby;
+                if (position > maxpos) position = maxpos;
+                $("#time-slider").slider("value", position);
+                event.preventDefault();
+            }).next().button({
+                icons: {
+                    primary: "ui-icon ui-icon-seek-end"
+                },
+                text: false
+            }).click(function (event) {
+                //go to end
+                stepby = 1;
+                d3.selectAll("svg path").remove(); //remove all paths in svg
+                position = maxpos;
+                $("#time-slider").slider("value", position);
+                event.preventDefault();
+            });
+
+            $("#time-slider").slider({
+                step: 1,
+                value: 0,
+                min: 0,
+                max: 140,
+                change: function (event, ui) {
+                    //slider changed
+                    position = ui.value;
+                    step();
+                },
+                slide: function (event, ui) {
+                    $("#timelabel").text(pad(ui.value, 3));
+                }
+            });
+
+            function pad(number, length) {
+                var str = '' + number;
+                while (str.length < length) {
+                    str = '0' + str;
+                }
+                return str;
+            }
+
+            function preloadPlayPathCache(steps) {
+                //preload svg with a couple of path steps
+                var size = position + steps;
+                for (var i = position; i < size; i++) {
+                    $("#time-slider").slider("value", i);
+                }
+            }
+
+
+        });
+
+
+    </script>
+</head>
+
+<body>
+<div id="divPangea">
+    <div id="map">
+    </div>
+    <div id="label">
+        <h3>Pangea Back In Time <span id="timelabel">000</span></h3>
+    </div>
+    <div id="stepControls" style="float:left;">
+        <button title="Go to start" style="height: 15px;">
+        </button>
+        <button title="Step backward through time range" style="height: 15px;">
+        </button>
+        <button title="Stop" style="height: 15px;">
+        </button>
+        <button title="Play through time range" style="height: 15px;">
+        </button>
+        <button title="Pause" style="height: 15px;">
+        </button>
+        <button title="Step forward through time range" style="height: 15px;">
+        </button>
+        <button title="Go to end" style="height: 15px;">
+        </button>
+    </div>
+    <div style='float: left; width: 310px; vertical-align: middle; margin: 10px 5px 5px 5px;'
+        id="time-slider">
+    </div>
+    <footer style='vertical-align: middle; margin: 10px 5px 5px 5px;'>
+    Data furnished under Creative Commons License:Gurnis, M., M. Turner, S. Zahirovic, L. DiCaprio, S. Spasojevic, R. D. Müller, J. Boyden, M. Seton, V. C. Manea, and D. J. Bower,  Plate tectonic reconstructions with continuously closing plates, Computers & Geosciences, 38, 35-42, 2012.
+    </footer>
+
+    </div>
+</body>
+</html>
