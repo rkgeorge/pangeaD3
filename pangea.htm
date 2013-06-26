@@ -148,7 +148,7 @@
                 //step is fired at the slider change event and the change event
                 // is triggered in all cases
 
-                var posname = "json/topostep_" + pad(position, 3) + ".json";
+                var posname = "json/topostep_" + pad(position, 3) + ".topojson";
                 d3.select("svg path").remove(); //remove the first path in svg
                 d3.json(posname, function (error, world) {//add new path
                     svg.append("path")
